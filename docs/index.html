@@ -356,6 +356,19 @@ async function load(){
     if (!DB || !DB.settings) DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
   if (DB.settings.minutesPerHour == null) DB.settings.minutesPerHour = 65;
+  // One-time cleanup: videos with the same file name are duplicates, keep the first one.
+  const seenNames = new Set();
+  const beforeDedupe = DB.videos.length;
+  DB.videos = DB.videos.filter(v=>{
+    if (!v.file || v.file==='(вручну)') return true;
+    if (seenNames.has(v.file)) return false;
+    seenNames.add(v.file);
+    return true;
+  });
+  if (DB.videos.length !== beforeDedupe){
+    save();
+    setTimeout(()=>toast(`Прибрано дублів відео: ${beforeDedupe - DB.videos.length}. Перевір категорії music / no music у списку.`), 500);
+  }
   // Migrate old table statuses to the new set.
   let migrated = false;
   DB.tables.forEach(t=>{
@@ -593,19 +606,18 @@ async function scanFolder(){
 
   let added = 0, skipped = 0, moved = 0, noDuration = 0;
   const fresh = [];
+  const freshNames = new Set();
   for (const f of files){
     const rel = f.webkitRelativePath || f.name;
-    if (known.has(rel)){ skipped++; continue; }
-    // Same file name = same video, even if it was moved to another folder.
+    // Name match always wins: same name = same video, category does not matter.
     const existing = byName.get(f.name);
     if (existing){
-      const meta = parsePathMeta(rel);
-      existing.path = rel;
-      if (meta.cat) existing.cat = meta.cat;
-      if (meta.level) existing.level = meta.level;
-      moved++;
+      if (existing.path !== rel){ existing.path = rel; moved++; }
+      else skipped++;
       continue;
     }
+    if (known.has(rel) || freshNames.has(f.name)){ skipped++; continue; }
+    freshNames.add(f.name);
     fresh.push(f);
   }
 
@@ -628,7 +640,7 @@ async function scanFolder(){
   $('scanState').textContent = '';
   save(); renderVideos(); renderStats();
   let msg = `Додано нових: ${added}. Уже було на сайті: ${skipped + moved}.`;
-  if (moved) msg += ` Оновлено шлях або папку у ${moved}.`;
+  if (moved) msg += ` Оновлено шлях у ${moved}.`;
   if (noDuration) msg += ` Не вдалося прочитати тривалість у ${noDuration} — впиши години вручну в списку.`;
   toast(msg);
 }
