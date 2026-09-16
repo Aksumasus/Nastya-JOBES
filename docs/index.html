@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Моя робота</title>
+<style>
+  :root{
+    --bg:#f6f6f6;
+    --card:#ffffff;
+    --ink:#232323;
+    --muted:#767676;
+    --line:#e3e3e3;
+    --btn:#2b2b2b;
+    --danger:#b05050;
+    --st-none:#f6e4e4;
+    --st-ready:#f7efd6;
+    --st-wait:#e2ebf7;
+    --st-done:#e0f0e5;
+    --btn-text:#ffffff;
+    --chip:#f0f0f0;
+  }
+  body[data-theme="dark"]{
+    --bg:#151515;
+    --card:#1f1f1f;
+    --ink:#e4e4e4;
+    --muted:#9a9a9a;
+    --line:#353535;
+    --btn:#e4e4e4;
+    --btn-text:#1a1a1a;
+    --danger:#d98a8a;
+    --st-none:#4a2c2c;
+    --st-ready:#48402a;
+    --st-wait:#2b3a4e;
+    --st-done:#2b4234;
+    --chip:#2a2a2a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:"Segoe UI",system-ui,sans-serif;
+    background:var(--bg);
+    min-height:100vh;
+    color:var(--ink);
+    padding:0 16px 60px;
+    font-size:14px;
+  }
+  header{
+    max-width:1100px;margin:0 auto;padding:22px 0 10px;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  h1{font-size:22px;margin:0;font-weight:700}
+  .spacer{flex:1}
+  .watcher-btn{
+    border:1px solid var(--btn);cursor:pointer;font:inherit;font-weight:600;
+    background:var(--btn);color:var(--btn-text);padding:9px 20px;border-radius:8px;
+  }
+  .watcher-btn:hover{opacity:.85}
+  nav{max-width:1100px;margin:6px auto 20px;display:flex;gap:8px;flex-wrap:wrap}
+  nav button{
+    border:1px solid var(--line);cursor:pointer;font:inherit;font-weight:600;color:var(--muted);
+    background:var(--card);padding:8px 18px;border-radius:8px;
+  }
+  nav button.active{background:var(--btn);color:var(--btn-text);border-color:var(--btn)}
+  main{max-width:1100px;margin:0 auto}
+  section{display:none}
+  section.active{display:block}
+  .card{
+    background:var(--card);border-radius:10px;padding:18px 20px;
+    border:1px solid var(--line);margin-bottom:16px;
+  }
+  .card h2{margin:0 0 14px;font-size:15px}
+  .grid.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px}
+  .stat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--card)}
+  .stat .num{font-size:24px;font-weight:700;margin-top:4px}
+  .stat .sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .label{font-size:12px;color:var(--muted);font-weight:600}
+  .period{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .period button{
+    border:1px solid var(--line);background:var(--card);cursor:pointer;font:inherit;
+    padding:7px 16px;border-radius:8px;color:var(--muted);font-weight:600;
+  }
+  .period button.active{background:var(--btn);border-color:var(--btn);color:var(--btn-text)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-size:12px;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+  td{padding:7px 8px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  input,select{
+    font:inherit;font-size:13px;color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;
+    background:var(--card);outline:none;max-width:100%;
+  }
+  input:focus,select:focus{border-color:#999}
+  input[type=number]{width:85px}
+  input[type=date]{width:145px}
+  .btn{
+    border:1px solid var(--btn);cursor:pointer;font:inherit;font-weight:600;color:var(--btn-text);
+    background:var(--btn);padding:8px 16px;border-radius:8px;
+  }
+  .btn:hover{opacity:.85}
+  .btn.ghost{background:var(--card);color:var(--ink)}
+  .del{border:none;background:none;cursor:pointer;color:#bbb;font-size:14px;padding:4px}
+  .del:hover{color:var(--danger)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--chip);color:var(--ink);border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;
+  }
+  .status-select{border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600}
+  .empty{color:var(--muted);font-size:13px;padding:8px 0;text-align:center}
+  .settings-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .settings-grid label{display:block}
+  .settings-grid .label{margin-bottom:6px}
+  .settings-grid input{width:100%}
+  .file-btn{position:relative;overflow:hidden;display:inline-block}
+  .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--btn);color:var(--btn-text);padding:10px 22px;border-radius:8px;
+    font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9;
+    max-width:90vw;text-align:center;
+  }
+  .toast.show{opacity:1}
+  td input[type=number]{width:75px;padding:4px 8px}
+  td select{padding:4px 8px}
+  td input.lvl{width:90px;padding:4px 8px}
+  .static-mode .watcher-btn{display:none}
+  .static-mode .server-only{display:none}
+  .mode-badge{display:none;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+  .static-mode .mode-badge{display:inline-block}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Моя робота</h1>
+  <div class="spacer"></div>
+  <span class="mode-badge">Онлайн-версія — дані зберігаються в цьому браузері</span>
+  <button class="btn ghost" id="themeBtn" onclick="toggleTheme()">Темна тема</button>
+  <button class="watcher-btn" onclick="launchWatcher()">Відкрити вотчер</button>
+</header>
+
+<nav>
+  <button data-tab="stats" class="active" onclick="showTab('stats')">Статистика</button>
+  <button data-tab="videos" onclick="showTab('videos')">Відео</button>
+  <button data-tab="units" onclick="showTab('units')">Юніти</button>
+  <button data-tab="tables" onclick="showTab('tables')">Таблиці</button>
+  <button data-tab="settings" onclick="showTab('settings')">Налаштування</button>
+</nav>
+
+<main>
+
+<!-- Статистика -->
+<section id="tab-stats" class="active">
+  <div class="period" id="periodBtns">
+    <button data-p="day" class="active" onclick="setPeriod('day')">Сьогодні</button>
+    <button data-p="week" onclick="setPeriod('week')">Тиждень</button>
+    <button data-p="month" onclick="setPeriod('month')">Зарплатний місяць</button>
+    <button data-p="all" onclick="setPeriod('all')">Увесь час</button>
+  </div>
+
+  <div class="grid stats" id="statCards"></div>
+
+  <div class="card">
+    <h2>По іграх</h2>
+    <div id="gameStats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Таблиці</h2>
+    <div id="tableStats"></div>
+  </div>
+</section>
+
+<!-- Відео -->
+<section id="tab-videos">
+  <div class="card">
+    <h2>Ігри</h2>
+    <div class="row">
+      <input id="gameLink" placeholder="Силка на гру зі Стіму" style="flex:1;min-width:220px" oninput="autoGameName()">
+      <input id="gameName" placeholder="Назва гри" style="width:200px">
+      <button class="btn" onclick="addGame()">Додати гру</button>
+    </div>
+    <div class="row" id="gameList" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Додати відео з папки</h2>
+    <div class="row">
+      <select id="scanGame"></select>
+      <span class="file-btn btn">Вибрати папку
+        <input type="file" id="folderInput" webkitdirectory directory multiple onchange="scanFolder()">
+      </span>
+      <button class="btn ghost" onclick="addManualRow()">Додати вручну</button>
+      <span id="scanState" style="color:var(--muted);font-size:13px"></span>
+    </div>
+    <div id="pendingWrap" style="margin-top:14px;display:none">
+      <table>
+        <thead><tr><th>Файл</th><th>Дата</th><th>Годин</th><th>Гра</th><th>Категорія</th><th>Левел</th><th></th></tr></thead>
+        <tbody id="pendingRows"></tbody>
+      </table>
+      <div style="margin-top:12px"><button class="btn" onclick="savePending()">Зберегти всі</button></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Внесені відео</h2>
+    <div class="row" style="margin-bottom:12px">
+      <select id="purgeGame"></select>
+      <button class="btn ghost" onclick="purgeGameVideos()">Видалити всі відео цієї гри</button>
+    </div>
+    <div id="videoList"></div>
+  </div>
+</section>
+
+<!-- Юніти -->
+<section id="tab-units">
+  <div class="card">
+    <h2>Додати юніти</h2>
+    <div class="row">
+      <input type="date" id="unitDate">
+      <input type="number" id="unitCount" placeholder="Кількість" min="0" step="1" style="width:110px">
+      <input id="unitNote" placeholder="Нотатка" style="flex:1;min-width:160px">
+      <button class="btn" onclick="addUnits()">Додати</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Список</h2>
+    <div id="unitList"></div>
+  </div>
+</section>
+
+<!-- Таблиці -->
+<section id="tab-tables">
+  <div class="card">
+    <h2>Додати таблицю</h2>
+    <div class="row">
+      <select id="tableGame" onchange="pickTableGame()"></select>
+      <input id="tableLink" placeholder="Силка зі Стіму" style="flex:1;min-width:220px" oninput="autoTableName()">
+      <input id="tableName" placeholder="Назва" style="width:170px">
+      <input type="date" id="tableDate">
+      <select id="tableStatus"></select>
+      <button class="btn" onclick="addTable()">Додати</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Список</h2>
+    <div id="tableList"></div>
+  </div>
+</section>
+
+<!-- Налаштування -->
+<section id="tab-settings">
+  <div class="card">
+    <h2>Налаштування</h2>
+    <div class="settings-grid">
+      <label><div class="label">Оплата за годину відео, $</div>
+        <input type="number" id="setHourly" step="0.01" min="0"></label>
+      <label><div class="label">Хвилин в оплачуваній годині</div>
+        <input type="number" id="setMinutes" step="1" min="1"></label>
+      <label><div class="label">Оплата за один юніт, $</div>
+        <input type="number" id="setUnit" step="0.01" min="0"></label>
+      <label><div class="label">Курс долара, ₴ за 1 $</div>
+        <input type="number" id="setRate" step="0.01" min="0"></label>
+      <label class="server-only"><div class="label">Шлях до вотчера</div>
+        <input id="setWatcher" placeholder="C:\...\watcher.exe"></label>
+    </div>
+    <div style="margin-top:16px"><button class="btn" onclick="saveSettings()">Зберегти</button></div>
+  </div>
+  <div class="card">
+    <h2>Мої дані</h2>
+    <div class="row">
+      <button class="btn ghost" onclick="exportData()">Завантажити файл із даними</button>
+      <span class="file-btn btn ghost">Відновити з файлу
+        <input type="file" id="importFile" accept=".json" onchange="importData()">
+      </span>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STATUSES = ['відсутня','готова, не надіслана','готова, чекає перевірки','перевірена'];
+const STATUS_COLORS = {
+  'відсутня':'var(--st-none)',
+  'готова, не надіслана':'var(--st-ready)',
+  'готова, чекає перевірки':'var(--st-wait)',
+  'перевірена':'var(--st-done)'
+};
+const OLD_STATUS_MAP = {
+  'не готова':'відсутня','готова':'готова, не надіслана','не надіслана':'готова, не надіслана',
+  'надіслана':'готова, чекає перевірки','не перевірена':'готова, чекає перевірки'
+};
+const VIDEO_EXT = /\.(mp4|mkv|avi|mov|webm|m4v|wmv|flv|ts)$/i;
+const VIDEO_LIMIT = 10;
+
+const DEFAULT_DATA = {
+  settings: { hourlyRate: 5.25, unitPrice: 0, usdUah: 41.5, watcherPath: '', minutesPerHour: 65 },
+  games: [], videos: [], units: [], tables: []
+};
+let DB = null;
+let period = 'day';
+let pending = [];
+let showAllVideos = false;
+let serverMode = true; // false = GitHub Pages, data lives in localStorage
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n,d=1) => (+n||0).toLocaleString('uk-UA',{maximumFractionDigits:d});
+const fmtDate = s => { const [y,m,d] = (s||'').split('-'); return d?`${d}.${m}.${y}`:''; };
+function localDate(d){
+  d = d || new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const today = () => localDate();
+// Real hours -> paid hours (65 real minutes = 1 paid hour by default).
+const paidHours = h => (+h||0)*60/(+DB.settings.minutesPerHour||65);
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+async function load(){
+  try{
+    const r = await fetch('api/data');
+    if (!r.ok) throw new Error('no server');
+    DB = await r.json();
+  }catch(e){
+    serverMode = false;
+    document.body.classList.add('static-mode');
+    try{ DB = JSON.parse(localStorage.getItem('workdata')); }catch(e2){}
+    if (!DB || !DB.settings) DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  }
+  if (DB.settings.minutesPerHour == null) DB.settings.minutesPerHour = 65;
+  // Migrate old table statuses to the new set.
+  let migrated = false;
+  DB.tables.forEach(t=>{
+    if (!STATUSES.includes(t.status)){
+      t.status = OLD_STATUS_MAP[t.status] || 'відсутня';
+      migrated = true;
+    }
+  });
+  if (migrated) save();
+  renderAll();
+}
+async function save(){
+  if (serverMode){
+    await fetch('api/data',{method:'POST',body:JSON.stringify(DB)});
+  } else {
+    try{ localStorage.setItem('workdata', JSON.stringify(DB)); }
+    catch(e){ toast('Не вдалося зберегти дані в браузері'); }
+  }
+}
+
+function parseSteam(link){
+  let m = link.match(/\/app\/(\d+)(?:\/([^\/?#]+))?/);
+  if (m) return { appid:m[1], name: m[2] ? decodeURIComponent(m[2]).replace(/_/g,' ').trim() : '' };
+  m = link.match(/filedetails\/?\?id=(\d+)/);
+  if (m) return { appid:m[1], name:'' };
+  return null;
+}
+async function fetchSteamName(appid){
+  if (!serverMode) return ''; // no proxy on GitHub Pages, name comes from the link itself
+  try{
+    const r = await (await fetch('api/steamname?appid='+appid)).json();
+    return r.name || '';
+  }catch(e){ return ''; }
+}
+const gameTitle = g => g.appid ? `${g.name} (#${g.appid})` : g.name;
+
+// ---------- tabs ----------
+function showTab(name){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id==='tab-'+name));
+}
+
+// ---------- periods ----------
+function inPeriod(dateStr){
+  if (period==='all') return true;
+  const d = new Date(dateStr+'T00:00');
+  const now = new Date(); now.setHours(0,0,0,0);
+  if (period==='day') return d.getTime()===now.getTime();
+  if (period==='week'){
+    const mon = new Date(now);
+    mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+    return d>=mon && d<=now;
+  }
+  if (period==='month'){
+    // Salary month: from the 15th to the 14th of the next month.
+    const start = new Date(now.getFullYear(), now.getMonth() - (now.getDate() < 15 ? 1 : 0), 15);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 14);
+    return d >= start && d <= end;
+  }
+  return true;
+}
+function setPeriod(p){
+  period = p;
+  document.querySelectorAll('#periodBtns button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  renderStats();
+}
+
+// ---------- stats ----------
+function renderStats(){
+  const s = DB.settings;
+  const vids  = DB.videos.filter(v=>inPeriod(v.date));
+  const units = DB.units.filter(u=>inPeriod(u.date));
+
+  const realHours = vids.reduce((a,v)=>a+(+v.hours||0),0);
+  const paid = paidHours(realHours);
+  const unitCount = units.reduce((a,u)=>a+(+u.count||0),0);
+  const usdVideo = paid * (+s.hourlyRate||0);
+  const usdUnits = unitCount * (+s.unitPrice||0);
+  const usd = usdVideo + usdUnits;
+  const uah = usd * (+s.usdUah||0);
+  const music = vids.filter(v=>v.cat==='music').length;
+  const nomusic = vids.filter(v=>v.cat==='nomusic').length;
+  const catByGame = {};
+  vids.forEach(v=>{
+    const g = catByGame[v.gameId] ??= {music:0,nomusic:0};
+    if (v.cat==='music') g.music++; else g.nomusic++;
+  });
+  const musicByGame = Object.entries(catByGame).map(([gid,c])=>{
+    const game = DB.games.find(x=>x.id===gid);
+    return `${esc(game?game.name:'Без гри')}: ${c.music} / ${c.nomusic}`;
+  }).join('<br>');
+
+  $('statCards').innerHTML = `
+    <div class="stat"><div class="label">Оплачувані години</div><div class="num">${fmt(paid,2)}</div>
+      <div class="sub">реальний час: ${fmt(realHours,2)} год · ${vids.length} відео</div></div>
+    <div class="stat"><div class="label">Долари</div><div class="num">$${fmt(usd,2)}</div>
+      <div class="sub">відео $${fmt(usdVideo,2)} · юніти $${fmt(usdUnits,2)}</div></div>
+    <div class="stat"><div class="label">Гривні</div><div class="num">${fmt(uah,0)} ₴</div>
+      <div class="sub">курс ${fmt(s.usdUah,2)}</div></div>
+    <div class="stat"><div class="label">Music / No music</div><div class="num">${music} / ${nomusic}</div>
+      <div class="sub">${musicByGame}</div></div>
+    <div class="stat"><div class="label">Юніти</div><div class="num">${fmt(unitCount,0)}</div>
+      <div class="sub">$${fmt(usdUnits,2)}</div></div>`;
+
+  const byGame = {};
+  vids.forEach(v=>{
+    const g = byGame[v.gameId] ??= {hours:0,count:0,music:0,nomusic:0};
+    g.hours += +v.hours||0; g.count++;
+    if (v.cat==='music') g.music++; else g.nomusic++;
+  });
+  const rows = Object.entries(byGame).map(([gid,g])=>{
+    const game = DB.games.find(x=>x.id===gid);
+    return `<tr><td>${esc(game?gameTitle(game):'Без гри')}</td>
+      <td>${g.count}</td><td>${fmt(paidHours(g.hours),2)}</td>
+      <td>$${fmt(paidHours(g.hours)*(+s.hourlyRate||0),2)}</td>
+      <td>${g.music}</td><td>${g.nomusic}</td></tr>`;
+  }).join('');
+  $('gameStats').innerHTML = rows
+    ? `<table><thead><tr><th>Гра</th><th>Відео</th><th>Годин</th><th>$</th><th>Music</th><th>No music</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div class="empty">Немає відео за цей період</div>`;
+
+  const tbls = DB.tables.filter(t=>inPeriod(t.date));
+  const chips = STATUSES.map(st=>{
+    const n = tbls.filter(t=>t.status===st).length;
+    return `<span class="chip" style="background:${STATUS_COLORS[st]}">${st}: <b>${n}</b></span>`;
+  }).join('') + `<span class="chip">Разом: <b>${tbls.length}</b></span>`;
+  const tblRows = tbls.length
+    ? `<table style="margin-top:14px"><thead><tr><th>Гра</th><th>Дата</th><th>Стан</th></tr></thead>
+       <tbody>${[...tbls].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`<tr>
+         <td><a href="${esc(t.link)}" target="_blank" style="color:var(--ink)">${esc(t.name)}</a></td>
+         <td>${fmtDate(t.date)}</td>
+         <td><span class="chip" style="background:${STATUS_COLORS[t.status]||'#fff'}">${esc(t.status)}</span></td>
+       </tr>`).join('')}</tbody></table>`
+    : '';
+  $('tableStats').innerHTML = `<div class="row">${chips}</div>` + tblRows;
+}
+
+// ---------- games ----------
+let autoNameFilled = '';
+async function autoGameName(){
+  const p = parseSteam($('gameLink').value);
+  if (!p) return;
+  const field = $('gameName');
+  if (p.name && (!field.value || field.value===autoNameFilled)){
+    field.value = p.name; autoNameFilled = p.name;
+  }
+  const fetched = await fetchSteamName(p.appid);
+  if (fetched && (!field.value || field.value===autoNameFilled)){
+    field.value = fetched; autoNameFilled = fetched;
+  }
+}
+async function addGame(){
+  const link = $('gameLink').value.trim();
+  const p = parseSteam(link);
+  let name = $('gameName').value.trim();
+  if (!name && p) name = await fetchSteamName(p.appid) || p.name;
+  if (!name){ toast('Введи назву гри або силку зі Стіму'); return; }
+  DB.games.push({ id:uid(), name, link, appid: p ? p.appid : '' });
+  $('gameLink').value=''; $('gameName').value=''; autoNameFilled='';
+  save(); renderGames(); toast('Гру додано');
+}
+function delGame(id){
+  if (!confirm('Видалити гру? Відео залишаться, але без прив\'язки до неї.')) return;
+  DB.games = DB.games.filter(g=>g.id!==id);
+  save(); renderGames(); renderStats(); renderVideos();
+}
+function renderGames(){
+  $('gameList').innerHTML = DB.games.length
+    ? DB.games.map(g=>`<span class="chip">${esc(gameTitle(g))}
+        <button class="del" onclick="delGame('${g.id}')">✕</button></span>`).join('')
+    : `<div class="empty">Додай першу гру силкою зі Стіму</div>`;
+  $('scanGame').innerHTML = gameOptions('');
+  $('tableGame').innerHTML = `<option value="">Вибрати з моїх ігор</option>` +
+    DB.games.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('');
+  $('purgeGame').innerHTML = `<option value="">Вибери гру</option>` +
+    DB.games.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('') +
+    `<option value="__nogame">Без гри</option>`;
+}
+function purgeGameVideos(){
+  const val = $('purgeGame').value;
+  if (!val){ toast('Спочатку вибери гру зі списку'); return; }
+  const match = v => val==='__nogame' ? !v.gameId : v.gameId===val;
+  const count = DB.videos.filter(match).length;
+  if (!count){ toast('У цієї гри немає внесених відео'); return; }
+  const name = val==='__nogame' ? 'без гри' : (DB.games.find(g=>g.id===val)?.name || '');
+  if (!confirm(`Видалити всі відео (${count} шт.) — ${name}? Це не можна скасувати.`)) return;
+  DB.videos = DB.videos.filter(v=>!match(v));
+  $('purgeGame').value='';
+  save(); renderVideos(); renderStats();
+  toast(`Видалено відео: ${count}`);
+}
+function pickTableGame(){
+  const g = DB.games.find(x=>x.id===$('tableGame').value);
+  if (!g) return;
+  $('tableLink').value = g.link || '';
+  $('tableName').value = g.name;
+}
+function gameOptions(sel){
+  return `<option value="">Без гри</option>` +
+    DB.games.map(g=>`<option value="${g.id}" ${g.id===sel?'selected':''}>${esc(g.name)}</option>`).join('');
+}
+
+// ---------- folder scan ----------
+function parsePathMeta(relPath){
+  const segs = relPath.split('/').slice(0,-1); // folders only
+  let cat = '', level = '';
+  for (const seg of segs){
+    const norm = seg.toLowerCase().replace(/[\s_\-]+/g,'');
+    if (norm==='nomusic' || norm==='безмузики') cat = 'nomusic';
+    else if (norm==='music' || norm==='музика') cat = 'music';
+    if (/level|лвл|левел|lvl|calibration|калібр/i.test(seg)) level = seg;
+  }
+  return { cat, level };
+}
+function readDuration(file){
+  return new Promise(resolve=>{
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    const done = h => { URL.revokeObjectURL(url); resolve(h); };
+    v.onloadedmetadata = () => done(isFinite(v.duration) ? v.duration/3600 : 0);
+    v.onerror = () => done(0);
+    v.src = url;
+  });
+}
+async function scanFolder(){
+  const files = [...$('folderInput').files].filter(f=>VIDEO_EXT.test(f.name));
+  $('folderInput').value = '';
+  if (!files.length){ toast('У цій папці не знайшлося відеофайлів'); return; }
+
+  const known = new Set(DB.videos.map(v=>v.path).filter(Boolean));
+  const knownNames = new Set(DB.videos.map(v=>v.file));
+  const gameId = $('scanGame').value;
+
+  let added = 0, skipped = 0, noDuration = 0;
+  const fresh = files.filter(f=>{
+    const rel = f.webkitRelativePath || f.name;
+    if (known.has(rel) || (!f.webkitRelativePath && knownNames.has(f.name))){ skipped++; return false; }
+    return true;
+  });
+
+  for (let i=0;i<fresh.length;i++){
+    const f = fresh[i];
+    $('scanState').textContent = `Обробляю ${i+1} з ${fresh.length}…`;
+    const rel = f.webkitRelativePath || f.name;
+    const meta = parsePathMeta(rel);
+    const hours = await readDuration(f);
+    if (!hours) noDuration++;
+    DB.videos.push({
+      id:uid(), file:f.name, path:rel,
+      date: localDate(new Date(f.lastModified)),
+      hours:+hours.toFixed(3), gameId,
+      cat: meta.cat || 'nomusic',
+      level: meta.level
+    });
+    added++;
+  }
+  $('scanState').textContent = '';
+  save(); renderVideos(); renderStats();
+  let msg = `Додано нових: ${added}. Уже було на сайті: ${skipped}.`;
+  if (noDuration) msg += ` Не вдалося прочитати тривалість у ${noDuration} — впиши години вручну в списку.`;
+  toast(msg);
+}
+
+// ---------- manual add ----------
+function addManualRow(){
+  pending.push({ key:uid(), file:'', date:today(), hours:'', gameId:$('scanGame').value, cat:'music', level:'' });
+  renderPending();
+}
+function pendingEdit(key, field, val){
+  const r = pending.find(p=>p.key===key);
+  if (r) r[field] = val;
+}
+function removePending(key){
+  pending = pending.filter(p=>p.key!==key);
+  renderPending();
+}
+function renderPending(){
+  $('pendingWrap').style.display = pending.length ? '' : 'none';
+  $('pendingRows').innerHTML = pending.map(p=>`<tr>
+    <td><input value="${esc(p.file)}" placeholder="Назва" style="width:140px" onchange="pendingEdit('${p.key}','file',this.value)"></td>
+    <td><input type="date" value="${p.date}" onchange="pendingEdit('${p.key}','date',this.value)"></td>
+    <td><input type="number" step="0.01" min="0" value="${p.hours}" onchange="pendingEdit('${p.key}','hours',this.value)"></td>
+    <td><select onchange="pendingEdit('${p.key}','gameId',this.value)">${gameOptions(p.gameId)}</select></td>
+    <td><select onchange="pendingEdit('${p.key}','cat',this.value)">
+      <option value="music">Music</option><option value="nomusic" ${p.cat==='nomusic'?'selected':''}>No music</option>
+    </select></td>
+    <td><input class="lvl" value="${esc(p.level)}" placeholder="Левел" onchange="pendingEdit('${p.key}','level',this.value)"></td>
+    <td><button class="del" onclick="removePending('${p.key}')">✕</button></td>
+  </tr>`).join('');
+}
+function savePending(){
+  if (pending.some(p=>!(+p.hours>0))){ toast('У деяких рядках не вписані години'); return; }
+  pending.forEach(p=>DB.videos.push({
+    id:uid(), file:p.file||'(вручну)', path:'', date:p.date, hours:+p.hours,
+    gameId:p.gameId, cat:p.cat, level:p.level
+  }));
+  pending = [];
+  save(); renderPending(); renderVideos(); renderStats();
+  toast('Відео збережено');
+}
+
+// ---------- video list ----------
+function editVideo(id, field, val){
+  const v = DB.videos.find(x=>x.id===id);
+  if (!v) return;
+  v[field] = field==='hours' ? +val : val;
+  save(); renderStats();
+}
+function delVideo(id){
+  DB.videos = DB.videos.filter(v=>v.id!==id);
+  save(); renderVideos(); renderStats();
+}
+function toggleVideos(){
+  showAllVideos = !showAllVideos;
+  renderVideos();
+}
+function renderVideos(){
+  const all = [...DB.videos].sort((a,b)=>b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  const list = showAllVideos ? all : all.slice(0,VIDEO_LIMIT);
+  const rows = list.map(v=>`<tr>
+    <td>${fmtDate(v.date)}</td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(v.path||v.file)}">${esc(v.file)}</td>
+    <td><select onchange="editVideo('${v.id}','gameId',this.value)">${gameOptions(v.gameId)}</select></td>
+    <td><input type="number" step="0.01" min="0" value="${v.hours}" onchange="editVideo('${v.id}','hours',this.value)"></td>
+    <td><select onchange="editVideo('${v.id}','cat',this.value)">
+      <option value="music">Music</option><option value="nomusic" ${v.cat==='nomusic'?'selected':''}>No music</option>
+    </select></td>
+    <td><input class="lvl" value="${esc(v.level||'')}" onchange="editVideo('${v.id}','level',this.value)"></td>
+    <td><button class="del" onclick="delVideo('${v.id}')">✕</button></td>
+  </tr>`).join('');
+  const more = all.length > VIDEO_LIMIT
+    ? `<div style="margin-top:12px;text-align:center">
+         <button class="btn ghost" onclick="toggleVideos()">${showAllVideos?'Згорнути':`Показати всі (${all.length})`}</button>
+       </div>` : '';
+  $('videoList').innerHTML = all.length
+    ? `<table><thead><tr><th>Дата</th><th>Файл</th><th>Гра</th><th>Годин</th><th>Категорія</th><th>Левел</th><th></th></tr></thead>
+       <tbody>${rows}</tbody></table>${more}`
+    : `<div class="empty">Поки що порожньо</div>`;
+}
+
+// ---------- units ----------
+function addUnits(){
+  const count = +$('unitCount').value;
+  if (!(count>0)){ toast('Введи кількість юнітів'); return; }
+  DB.units.push({ id:uid(), date:$('unitDate').value||today(), count, note:$('unitNote').value.trim() });
+  $('unitCount').value=''; $('unitNote').value='';
+  save(); renderUnits(); renderStats(); toast('Юніти додано');
+}
+function delUnit(id){
+  DB.units = DB.units.filter(u=>u.id!==id);
+  save(); renderUnits(); renderStats();
+}
+function renderUnits(){
+  const s = DB.settings;
+  const list = [...DB.units].sort((a,b)=>b.date.localeCompare(a.date));
+  $('unitList').innerHTML = list.length
+    ? `<table><thead><tr><th>Дата</th><th>Кількість</th><th>$</th><th>₴</th><th>Нотатка</th><th></th></tr></thead>
+       <tbody>${list.map(u=>{
+         const usd = u.count*(+s.unitPrice||0);
+         return `<tr><td>${fmtDate(u.date)}</td><td>${u.count}</td>
+           <td>$${fmt(usd,2)}</td><td>${fmt(usd*(+s.usdUah||0),0)} ₴</td>
+           <td>${esc(u.note)}</td>
+           <td><button class="del" onclick="delUnit('${u.id}')">✕</button></td></tr>`;
+       }).join('')}</tbody></table>`
+    : `<div class="empty">Поки що порожньо</div>`;
+}
+
+// ---------- tables ----------
+async function autoTableName(){
+  const p = parseSteam($('tableLink').value);
+  if (!p) return;
+  $('tableName').value = p.name || '#'+p.appid;
+  const fetched = await fetchSteamName(p.appid);
+  if (fetched) $('tableName').value = fetched;
+}
+function addTable(){
+  const link = $('tableLink').value.trim();
+  if (!link){ toast('Встав силку зі Стіму'); return; }
+  const p = parseSteam(link);
+  const name = $('tableName').value.trim() || (p ? (p.name||'#'+p.appid) : link);
+  DB.tables.push({ id:uid(), link, name, date:$('tableDate').value||today(), status:$('tableStatus').value });
+  $('tableLink').value=''; $('tableName').value=''; $('tableGame').value='';
+  save(); renderTables(); renderStats(); toast('Таблицю додано');
+}
+function setTableStatus(id,st){
+  const t = DB.tables.find(x=>x.id===id);
+  if (t){ t.status = st; save(); renderStats(); renderTables(); }
+}
+function delTable(id){
+  DB.tables = DB.tables.filter(t=>t.id!==id);
+  save(); renderTables(); renderStats();
+}
+function statusSelect(cur, onchange){
+  return `<select class="status-select" style="background:${STATUS_COLORS[cur]||'#fff'}" onchange="${onchange}">
+    ${STATUSES.map(s=>`<option ${s===cur?'selected':''}>${s}</option>`).join('')}</select>`;
+}
+function renderTables(){
+  const list = [...DB.tables].sort((a,b)=>b.date.localeCompare(a.date));
+  $('tableList').innerHTML = list.length
+    ? `<table><thead><tr><th>Дата</th><th>Назва</th><th>Стан</th><th></th></tr></thead>
+       <tbody>${list.map(t=>`<tr>
+         <td>${fmtDate(t.date)}</td>
+         <td><a href="${esc(t.link)}" target="_blank" style="color:var(--ink)">${esc(t.name)}</a></td>
+         <td>${statusSelect(t.status,`setTableStatus('${t.id}',this.value)`)}</td>
+         <td><button class="del" onclick="delTable('${t.id}')">✕</button></td></tr>`).join('')}</tbody></table>`
+    : `<div class="empty">Поки що порожньо</div>`;
+}
+
+// ---------- settings ----------
+function saveSettings(){
+  DB.settings.hourlyRate = +$('setHourly').value || 0;
+  DB.settings.minutesPerHour = +$('setMinutes').value || 65;
+  DB.settings.unitPrice  = +$('setUnit').value || 0;
+  DB.settings.usdUah     = +$('setRate').value || 0;
+  DB.settings.watcherPath = $('setWatcher').value.trim().replace(/^"|"$/g,'');
+  save(); renderAll(); toast('Збережено');
+}
+function renderSettings(){
+  const s = DB.settings;
+  $('setHourly').value = s.hourlyRate||'';
+  $('setMinutes').value = s.minutesPerHour||65;
+  $('setUnit').value = s.unitPrice||'';
+  $('setRate').value = s.usdUah||'';
+  $('setWatcher').value = s.watcherPath||'';
+}
+
+// ---------- export / import ----------
+function exportData(){
+  const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(){
+  const f = $('importFile').files[0];
+  $('importFile').value = '';
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const obj = JSON.parse(reader.result);
+      if (!obj.settings || !Array.isArray(obj.videos)) throw new Error('bad format');
+      if (!confirm('Замінити всі поточні дані даними з файлу?')) return;
+      DB = obj;
+      if (DB.settings.minutesPerHour == null) DB.settings.minutesPerHour = 65;
+      save(); renderAll(); toast('Дані відновлено з файлу');
+    }catch(e){ toast('Це не схоже на файл із даними сайту'); }
+  };
+  reader.readAsText(f);
+}
+
+// ---------- watcher ----------
+async function launchWatcher(){
+  const r = await (await fetch('api/watcher',{method:'POST'})).json();
+  if (r.ok) toast('Вотчер запускається');
+  else if (r.error==='no path') toast('Спочатку вкажи шлях до вотчера в налаштуваннях');
+  else toast('Програму за цим шляхом не знайдено');
+}
+
+// ---------- init ----------
+function renderAll(){
+  renderSettings(); renderGames(); renderVideos(); renderUnits(); renderTables(); renderStats(); renderPending();
+}
+// ---------- theme ----------
+function applyTheme(t){
+  document.body.dataset.theme = t;
+  $('themeBtn').textContent = t==='dark' ? 'Світла тема' : 'Темна тема';
+}
+function toggleTheme(){
+  const t = document.body.dataset.theme==='dark' ? 'light' : 'dark';
+  try{ localStorage.setItem('theme', t); }catch(e){}
+  applyTheme(t);
+}
+try{ applyTheme(localStorage.getItem('theme')==='dark' ? 'dark' : 'light'); }catch(e){}
+
+$('unitDate').value = today();
+$('tableDate').value = today();
+$('tableStatus').innerHTML = STATUSES.map(s=>`<option>${s}</option>`).join('');
+load();
+</script>
+</body>
+</html>
