@@ -588,15 +588,26 @@ async function scanFolder(){
   if (!files.length){ toast('У цій папці не знайшлося відеофайлів'); return; }
 
   const known = new Set(DB.videos.map(v=>v.path).filter(Boolean));
-  const knownNames = new Set(DB.videos.map(v=>v.file));
+  const byName = new Map(DB.videos.map(v=>[v.file, v]));
   const gameId = $('scanGame').value;
 
-  let added = 0, skipped = 0, noDuration = 0;
-  const fresh = files.filter(f=>{
+  let added = 0, skipped = 0, moved = 0, noDuration = 0;
+  const fresh = [];
+  for (const f of files){
     const rel = f.webkitRelativePath || f.name;
-    if (known.has(rel) || (!f.webkitRelativePath && knownNames.has(f.name))){ skipped++; return false; }
-    return true;
-  });
+    if (known.has(rel)){ skipped++; continue; }
+    // Same file name = same video, even if it was moved to another folder.
+    const existing = byName.get(f.name);
+    if (existing){
+      const meta = parsePathMeta(rel);
+      existing.path = rel;
+      if (meta.cat) existing.cat = meta.cat;
+      if (meta.level) existing.level = meta.level;
+      moved++;
+      continue;
+    }
+    fresh.push(f);
+  }
 
   for (let i=0;i<fresh.length;i++){
     const f = fresh[i];
@@ -616,7 +627,8 @@ async function scanFolder(){
   }
   $('scanState').textContent = '';
   save(); renderVideos(); renderStats();
-  let msg = `Додано нових: ${added}. Уже було на сайті: ${skipped}.`;
+  let msg = `Додано нових: ${added}. Уже було на сайті: ${skipped + moved}.`;
+  if (moved) msg += ` Оновлено шлях або папку у ${moved}.`;
   if (noDuration) msg += ` Не вдалося прочитати тривалість у ${noDuration} — впиши години вручну в списку.`;
   toast(msg);
 }
