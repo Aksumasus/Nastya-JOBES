@@ -171,9 +171,9 @@
 <!-- Статистика -->
 <section id="tab-stats" class="active">
   <div class="period" id="periodBtns">
-    <button data-p="day" class="active" onclick="setPeriod('day')">Сьогодні</button>
+    <button data-p="day" onclick="setPeriod('day')">Сьогодні</button>
     <button data-p="week" onclick="setPeriod('week')">Тиждень</button>
-    <button data-p="month" onclick="setPeriod('month')">Зарплатний місяць</button>
+    <button data-p="month" class="active" onclick="setPeriod('month')">Зарплатний місяць</button>
     <button data-p="all" onclick="setPeriod('all')">Увесь час</button>
   </div>
 
@@ -320,7 +320,7 @@ const DEFAULT_DATA = {
   games: [], videos: [], units: [], tables: []
 };
 let DB = null;
-let period = 'day';
+let period = 'month';
 let pending = [];
 let showAllVideos = false;
 let serverMode = true; // false = GitHub Pages, data lives in localStorage
@@ -477,7 +477,8 @@ function renderStats(){
     ? `<table><thead><tr><th>Гра</th><th>Відео</th><th>Годин</th><th>$</th><th>Music</th><th>No music</th></tr></thead><tbody>${rows}</tbody></table>`
     : `<div class="empty">Немає відео за цей період</div>`;
 
-  const tbls = DB.tables.filter(t=>inPeriod(t.date));
+  // Tables ignore the selected period — they stay until deleted.
+  const tbls = DB.tables;
   const chips = STATUSES.map(st=>{
     const n = tbls.filter(t=>t.status===st).length;
     return `<span class="chip" style="background:${STATUS_COLORS[st]}">${st}: <b>${n}</b></span>`;
