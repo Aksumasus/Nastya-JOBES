@@ -137,6 +137,11 @@
   .static-mode .server-only{display:none}
   .mode-badge{display:none;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
   .static-mode .mode-badge{display:inline-block}
+  .static-only{display:none}
+  .static-mode .static-only{display:block}
+  .up-cell{text-align:center}
+  .up-cell input{width:16px;height:16px;cursor:pointer;accent-color:var(--btn)}
+  tr.not-uploaded td:first-child{box-shadow:inset 3px 0 0 var(--danger)}
 </style>
 </head>
 <body>
@@ -153,7 +158,7 @@
     Nastya <span class="jobes">JOBES</span>
   </h1>
   <div class="spacer"></div>
-  <span class="mode-badge">Онлайн-версія — дані зберігаються в цьому браузері</span>
+  <span class="mode-badge" id="modeBadge">Онлайн-версія — дані зберігаються в цьому браузері</span>
   <button class="btn ghost" id="themeBtn" onclick="toggleTheme()">Темна тема</button>
   <button class="watcher-btn" onclick="launchWatcher()">Відкрити вотчер</button>
 </header>
@@ -226,6 +231,8 @@
     <div class="row" style="margin-bottom:12px">
       <select id="purgeGame"></select>
       <button class="btn ghost" onclick="purgeGameVideos()">Видалити всі відео цієї гри</button>
+      <button class="btn ghost" onclick="markAllUploaded()">Позначити всі як завантажені</button>
+      <span id="notUploaded" style="color:var(--muted);font-size:13px"></span>
     </div>
     <div id="videoList"></div>
   </div>
@@ -294,6 +301,20 @@
       </span>
     </div>
   </div>
+  <div class="card static-only">
+    <h2>Онлайн-сховище і Телеграм-бот</h2>
+    <div class="settings-grid">
+      <label><div class="label">Адреса</div>
+        <input id="cloudUrl" placeholder="https://....workers.dev"></label>
+      <label><div class="label">Пароль</div>
+        <input id="cloudKey" type="password"></label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn" id="cloudBtn" onclick="connectCloud()">Підключити</button>
+      <button class="btn ghost" id="cloudOffBtn" onclick="disconnectCloud()">Відключити</button>
+      <span id="cloudState" style="color:var(--muted);font-size:13px"></span>
+    </div>
+  </div>
 </section>
 
 </main>
@@ -324,6 +345,10 @@ let period = 'month';
 let pending = [];
 let showAllVideos = false;
 let serverMode = true; // false = GitHub Pages, data lives in localStorage
+let cloudMode = false;  // GitHub Pages + online storage (Cloudflare worker), localStorage is only a cache
+const CLOUD_DEFAULT_URL = 'https://nastya-jobes.nastya-jobes.workers.dev';
+let cloud = null;
+try{ cloud = JSON.parse(localStorage.getItem('cloud')); }catch(e){}
 
 // ---------- helpers ----------
 const $ = id => document.getElementById(id);
@@ -344,6 +369,63 @@ function toast(msg){
   clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'),2600);
 }
 
+// ---------- online storage ----------
+async function cloudFetch(path, opts, c){
+  c = c || cloud;
+  const r = await fetch(c.url.replace(/\/+$/,'') + path, {
+    ...opts, headers:{ 'Authorization':'Bearer '+c.key, 'Content-Type':'application/json' }
+  });
+  if (r.status===401) throw new Error('password');
+  if (!r.ok) throw new Error('http '+r.status);
+  return r.json();
+}
+function cacheLocal(){
+  try{ localStorage.setItem('workdata', JSON.stringify(DB)); }
+  catch(e){ toast('Не вдалося зберегти дані в браузері'); }
+}
+async function connectCloud(){
+  const c = { url:$('cloudUrl').value.trim(), key:$('cloudKey').value.trim() };
+  if (!c.url || !c.key){ toast('Введи адресу і пароль'); return; }
+  let remote;
+  try{ remote = await cloudFetch('/api/data', {}, c); }
+  catch(e){ toast(e.message==='password' ? 'Неправильний пароль' : 'Не вдалося підключитися'); return; }
+  if (remote.empty){
+    await cloudFetch('/api/data', {method:'POST', body:JSON.stringify(DB)}, c);
+    toast('Підключено. Дані з цього браузера перенесено онлайн');
+  } else {
+    if (DB.videos.length && !confirm('Онлайн уже є дані. Показувати їх замість даних цього браузера?')) return;
+    DB = remote; cacheLocal();
+    toast('Підключено');
+  }
+  cloud = c; cloudMode = true;
+  try{ localStorage.setItem('cloud', JSON.stringify(c)); }catch(e){}
+  renderAll();
+}
+function disconnectCloud(){
+  if (!confirm('Відключити онлайн-сховище? Дані залишаться в цьому браузері, але бот більше не бачитиме нових відео.')) return;
+  cloud = null; cloudMode = false;
+  try{ localStorage.removeItem('cloud'); }catch(e){}
+  renderAll(); toast('Відключено');
+}
+function renderCloud(){
+  $('cloudUrl').value = cloud ? cloud.url : CLOUD_DEFAULT_URL;
+  $('cloudKey').value = cloud ? cloud.key : '';
+  $('cloudBtn').textContent = cloudMode ? 'Перепідключити' : 'Підключити';
+  $('cloudOffBtn').style.display = cloudMode ? '' : 'none';
+  $('cloudState').textContent = cloudMode ? 'Підключено' : '';
+  if (!serverMode) $('modeBadge').textContent = cloudMode
+    ? 'Онлайн-версія — дані зберігаються онлайн'
+    : 'Онлайн-версія — дані зберігаються в цьому браузері';
+}
+// The bot may have marked videos as uploaded while the tab was in the background.
+document.addEventListener('visibilitychange', async ()=>{
+  if (!cloudMode || document.visibilityState!=='visible') return;
+  try{
+    const remote = await cloudFetch('/api/data');
+    if (!remote.empty){ DB = remote; cacheLocal(); renderAll(); }
+  }catch(e){}
+});
+
 async function load(){
   try{
     const r = await fetch('api/data');
@@ -353,6 +435,15 @@ async function load(){
     serverMode = false;
     document.body.classList.add('static-mode');
     try{ DB = JSON.parse(localStorage.getItem('workdata')); }catch(e2){}
+    if (cloud){
+      cloudMode = true;
+      try{
+        const remote = await cloudFetch('/api/data');
+        if (!remote.empty) DB = remote;
+      }catch(e2){
+        setTimeout(()=>toast('Немає звʼязку з онлайн-сховищем, показую дані з браузера'), 500);
+      }
+    }
     if (!DB || !DB.settings) DB = JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
   if (DB.settings.minutesPerHour == null) DB.settings.minutesPerHour = 65;
@@ -384,8 +475,11 @@ async function save(){
   if (serverMode){
     await fetch('api/data',{method:'POST',body:JSON.stringify(DB)});
   } else {
-    try{ localStorage.setItem('workdata', JSON.stringify(DB)); }
-    catch(e){ toast('Не вдалося зберегти дані в браузері'); }
+    cacheLocal();
+    if (cloudMode){
+      try{ await cloudFetch('/api/data',{method:'POST',body:JSON.stringify(DB)}); }
+      catch(e){ toast('Не вдалося зберегти онлайн, перевір інтернет'); }
+    }
   }
 }
 
@@ -397,9 +491,11 @@ function parseSteam(link){
   return null;
 }
 async function fetchSteamName(appid){
-  if (!serverMode) return ''; // no proxy on GitHub Pages, name comes from the link itself
+  if (!serverMode && !cloudMode) return ''; // no proxy, name comes from the link itself
   try{
-    const r = await (await fetch('api/steamname?appid='+appid)).json();
+    const r = serverMode
+      ? await (await fetch('api/steamname?appid='+appid)).json()
+      : await cloudFetch('/api/steamname?appid='+appid);
     return r.name || '';
   }catch(e){ return ''; }
 }
@@ -694,6 +790,22 @@ function delVideo(id){
   DB.videos = DB.videos.filter(v=>v.id!==id);
   save(); renderVideos(); renderStats();
 }
+async function setUploaded(ids, value){
+  DB.videos.forEach(v=>{ if (ids.includes(v.id)) v.uploaded = value; });
+  if (cloudMode && !serverMode){
+    // Upload flags have their own endpoint so they never clash with the bot.
+    cacheLocal();
+    try{ await cloudFetch('/api/uploaded',{method:'POST',body:JSON.stringify({ids, value})}); }
+    catch(e){ toast('Не вдалося зберегти онлайн, перевір інтернет'); }
+  } else save();
+  renderVideos();
+}
+function markAllUploaded(){
+  const ids = DB.videos.filter(v=>!v.uploaded).map(v=>v.id);
+  if (!ids.length){ toast('Усі відео вже завантажені'); return; }
+  if (!confirm(`Позначити ${ids.length} відео як завантажені?`)) return;
+  setUploaded(ids, true);
+}
 function toggleVideos(){
   showAllVideos = !showAllVideos;
   renderVideos();
@@ -701,7 +813,7 @@ function toggleVideos(){
 function renderVideos(){
   const all = [...DB.videos].sort((a,b)=>b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   const list = showAllVideos ? all : all.slice(0,VIDEO_LIMIT);
-  const rows = list.map(v=>`<tr>
+  const rows = list.map(v=>`<tr class="${v.uploaded?'':'not-uploaded'}">
     <td>${fmtDate(v.date)}</td>
     <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(v.path||v.file)}">${esc(v.file)}</td>
     <td><select onchange="editVideo('${v.id}','gameId',this.value)">${gameOptions(v.gameId)}</select></td>
@@ -710,14 +822,17 @@ function renderVideos(){
       <option value="music">Music</option><option value="nomusic" ${v.cat==='nomusic'?'selected':''}>No music</option>
     </select></td>
     <td><input class="lvl" value="${esc(v.level||'')}" onchange="editVideo('${v.id}','level',this.value)"></td>
+    <td class="up-cell"><input type="checkbox" ${v.uploaded?'checked':''} onchange="setUploaded(['${v.id}'],this.checked)"></td>
     <td><button class="del" onclick="delVideo('${v.id}')">✕</button></td>
   </tr>`).join('');
+  const left = DB.videos.filter(v=>!v.uploaded).length;
+  $('notUploaded').textContent = left ? `Не завантажено: ${left}` : 'Усі завантажені';
   const more = all.length > VIDEO_LIMIT
     ? `<div style="margin-top:12px;text-align:center">
          <button class="btn ghost" onclick="toggleVideos()">${showAllVideos?'Згорнути':`Показати всі (${all.length})`}</button>
        </div>` : '';
   $('videoList').innerHTML = all.length
-    ? `<table><thead><tr><th>Дата</th><th>Файл</th><th>Гра</th><th>Годин</th><th>Категорія</th><th>Левел</th><th></th></tr></thead>
+    ? `<table><thead><tr><th>Дата</th><th>Файл</th><th>Гра</th><th>Годин</th><th>Категорія</th><th>Левел</th><th>Завантажено</th><th></th></tr></thead>
        <tbody>${rows}</tbody></table>${more}`
     : `<div class="empty">Поки що порожньо</div>`;
 }
@@ -845,7 +960,7 @@ async function launchWatcher(){
 
 // ---------- init ----------
 function renderAll(){
-  renderSettings(); renderGames(); renderVideos(); renderUnits(); renderTables(); renderStats(); renderPending();
+  renderSettings(); renderGames(); renderVideos(); renderUnits(); renderTables(); renderStats(); renderPending(); renderCloud();
 }
 // ---------- theme ----------
 function applyTheme(t){

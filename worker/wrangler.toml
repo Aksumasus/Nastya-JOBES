@@ -1,0 +1,11 @@
+name = "nastya-jobes"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# Thursday and Friday, 16:00 and 17:00 UTC. The code sends only at 19:00 Kyiv time.
+[triggers]
+crons = ["0 16,17 * * THU,FRI"]
+
+[[kv_namespaces]]
+binding = "DATA"
+id = "a8f4577cb3944202a6979155f4e9183e"
