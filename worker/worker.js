@@ -154,7 +154,7 @@ async function buildReminder(env) {
   const title = gid => gid === 'none' ? 'Без гри' : names[gid];
 
   const lines = gids.map(g => `• <b>${esc(title(g))}</b> — ${groups[g]}`);
-  const text = `Не забудьте, що ви не завантажили <b>${total}</b> відео по:\n\n${lines.join('\n')}`;
+  const text = `Оуу, у тебе є незавантажені відосіки (っ´ω\`)ﾉ(╥ω╥)\n\nНе забудь, Муся-чян, ще <b>${total}</b> відео по:\n\n${lines.join('\n')}\n\nЯ вірю в тебе! ٩(◕‿◕｡)۶`;
   const buttons = gids.map(g => {
     let label = title(g);
     if (label.length > 40) label = label.slice(0, 39) + '…';
@@ -164,7 +164,7 @@ async function buildReminder(env) {
   return { text, reply_markup: { inline_keyboard: buttons } };
 }
 
-const ALL_DONE = 'Усі відео завантажені. Молодець!';
+const ALL_DONE = 'Усі відео завантажені, Муся-чян (≧◡≦). Молодець! Няяяя (*≧ω≦*)♡';
 
 async function sendReminder(env, chatId, alwaysAnswer) {
   const r = await buildReminder(env);
@@ -190,11 +190,11 @@ async function telegramUpdate(req, env) {
       owner = chat;
       await tg(env, 'sendMessage', {
         chat_id: chat,
-        text: 'Привіт! Я нагадуватиму про незавантажені відео щочетверга і щоп\'ятниці о 19:00. Напиши /check, щоб перевірити будь-коли.'
+        text: 'Привіт, Муся-чян! (ﾉ◕ヮ◕)ﾉ*:・ﾟ✧ Я нагадуватиму тобі про відосіки щочетверга і щоп\'ятниці о 19:00. Напиши /check, і я перевірю будь-коли ♡'
       });
     }
     if (chat !== owner) {
-      await tg(env, 'sendMessage', { chat_id: chat, text: 'Це особистий бот.' });
+      await tg(env, 'sendMessage', { chat_id: chat, text: 'Вибач, я бот тільки для Мусі-чян (｡•́︿•̀｡)' });
     } else if (text.startsWith('/start') || text.startsWith('/check')) {
       await sendReminder(env, chat, true);
     }
@@ -216,7 +216,7 @@ async function telegramUpdate(req, env) {
         .filter(v => gid === 'all' || (gid === 'none' ? !known.has(v.gameId) : v.gameId === gid))
         .map(v => v.id);
       await markUploaded(env, ids, true);
-      await tg(env, 'answerCallbackQuery', { callback_query_id: cq.id, text: `Позначено: ${ids.length}` });
+      await tg(env, 'answerCallbackQuery', { callback_query_id: cq.id, text: `Ура! Позначено: ${ids.length} ♡` });
       const r = await buildReminder(env);
       await tg(env, 'editMessageText', r
         ? { chat_id: msg.chat.id, message_id: msg.message_id, text: r.text, parse_mode: 'HTML', reply_markup: r.reply_markup }
