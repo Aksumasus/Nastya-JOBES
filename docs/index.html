@@ -283,6 +283,8 @@
         <input type="number" id="setHourly" step="0.01" min="0"></label>
       <label><div class="label">Хвилин в оплачуваній годині</div>
         <input type="number" id="setMinutes" step="1" min="1"></label>
+      <label><div class="label">Символів таблиці в оплачуваній годині</div>
+        <input type="number" id="setChars" step="1" min="1"></label>
       <label><div class="label">Оплата за один юніт, $</div>
         <input type="number" id="setUnit" step="0.01" min="0"></label>
       <label><div class="label">Курс долара, ₴ за 1 $</div>
@@ -543,7 +545,8 @@ function renderStats(){
   const unitCount = units.reduce((a,u)=>a+(+u.count||0),0);
   const usdVideo = paid * (+s.hourlyRate||0);
   const usdUnits = unitCount * (+s.unitPrice||0);
-  const usd = usdVideo + usdUnits;
+  const usdTables = DB.tables.filter(t=>inPeriod(t.date)).reduce((a,t)=>a+tableUsd(t),0);
+  const usd = usdVideo + usdUnits + usdTables;
   const uah = usd * (+s.usdUah||0);
   const music = vids.filter(v=>v.cat==='music').length;
   const nomusic = vids.filter(v=>v.cat==='nomusic').length;
@@ -561,7 +564,7 @@ function renderStats(){
     <div class="stat"><div class="label">Оплачувані години</div><div class="num">${fmt(paid,2)}</div>
       <div class="sub">реальний час: ${fmt(realHours,2)} год · ${vids.length} відео</div></div>
     <div class="stat"><div class="label">Долари</div><div class="num">$${fmt(usd,2)}</div>
-      <div class="sub">відео $${fmt(usdVideo,2)} · юніти $${fmt(usdUnits,2)}</div></div>
+      <div class="sub">відео $${fmt(usdVideo,2)} · юніти $${fmt(usdUnits,2)} · таблиці $${fmt(usdTables,2)}</div></div>
     <div class="stat"><div class="label">Гривні</div><div class="num">${fmt(uah,0)} ₴</div>
       <div class="sub">курс ${fmt(s.usdUah,2)}</div></div>
     <div class="stat"><div class="label">Music / No music</div><div class="num">${music} / ${nomusic}</div>
@@ -593,11 +596,13 @@ function renderStats(){
     return `<span class="chip" style="background:${STATUS_COLORS[st]}">${st}: <b>${n}</b></span>`;
   }).join('') + `<span class="chip">Разом: <b>${tbls.length}</b></span>`;
   const tblRows = tbls.length
-    ? `<table style="margin-top:14px"><thead><tr><th>Гра</th><th>Дата</th><th>Стан</th></tr></thead>
+    ? `<table style="margin-top:14px"><thead><tr><th>Гра</th><th>Дата</th><th>Стан</th><th>Символів</th><th>$</th></tr></thead>
        <tbody>${[...tbls].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>`<tr>
          <td><a href="${esc(t.link)}" target="_blank" style="color:var(--ink)">${esc(t.name)}</a></td>
          <td>${fmtDate(t.date)}</td>
          <td><span class="chip" style="background:${STATUS_COLORS[t.status]||'#fff'}">${esc(t.status)}</span></td>
+         <td>${t.chars!=null ? fmt(t.chars,0) : '—'}</td>
+         <td>${t.chars!=null ? '$'+fmt(tableUsd(t),2) : '—'}</td>
        </tr>`).join('')}</tbody></table>`
     : '';
   $('tableStats').innerHTML = `<div class="row">${chips}</div>` + tblRows;
@@ -893,14 +898,52 @@ function statusSelect(cur, onchange){
   return `<select class="status-select" style="background:${STATUS_COLORS[cur]||'#fff'}" onchange="${onchange}">
     ${STATUSES.map(s=>`<option ${s===cur?'selected':''}>${s}</option>`).join('')}</select>`;
 }
+// ---------- table CSV ----------
+// Parses CSV properly so separators and quotes don't count, then sums the length of every cell.
+function countCsvChars(text){
+  text = text.replace(/^﻿/,'');
+  const firstLine = text.split(/\r?\n/)[0];
+  const sep = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+  let chars = 0, cell = '', quoted = false;
+  for (let i=0;i<text.length;i++){
+    const c = text[i];
+    if (quoted){
+      if (c==='"' && text[i+1]==='"'){ cell+='"'; i++; }
+      else if (c==='"') quoted = false;
+      else cell += c;
+    } else if (c==='"') quoted = true;
+    else if (c===sep || c==='\n' || c==='\r'){ chars += cell.trim().length; cell=''; }
+    else cell += c;
+  }
+  return chars + cell.trim().length;
+}
+const tableUsd = t => (+t.chars||0) / (+DB.settings.charsPerHour||1067) * (+DB.settings.hourlyRate||0);
+function uploadTableCsv(id, input){
+  const f = input.files[0];
+  input.value = '';
+  const t = DB.tables.find(x=>x.id===id);
+  if (!f || !t) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    t.chars = countCsvChars(reader.result);
+    t.csvName = f.name;
+    save(); renderTables(); renderStats();
+    toast(`Символів: ${fmt(t.chars,0)} · $${fmt(tableUsd(t),2)}`);
+  };
+  reader.readAsText(f);
+}
 function renderTables(){
   const list = [...DB.tables].sort((a,b)=>b.date.localeCompare(a.date));
   $('tableList').innerHTML = list.length
-    ? `<table><thead><tr><th>Дата</th><th>Назва</th><th>Стан</th><th></th></tr></thead>
+    ? `<table><thead><tr><th>Дата</th><th>Назва</th><th>Стан</th><th>Символів</th><th>$</th><th>CSV</th><th></th></tr></thead>
        <tbody>${list.map(t=>`<tr>
          <td>${fmtDate(t.date)}</td>
          <td><a href="${esc(t.link)}" target="_blank" style="color:var(--ink)">${esc(t.name)}</a></td>
          <td>${statusSelect(t.status,`setTableStatus('${t.id}',this.value)`)}</td>
+         <td>${t.chars!=null ? fmt(t.chars,0) : '—'}</td>
+         <td>${t.chars!=null ? '$'+fmt(tableUsd(t),2) : '—'}</td>
+         <td><span class="file-btn btn ghost" style="padding:4px 10px" title="${esc(t.csvName||'')}">${t.chars!=null?'Замінити':'Завантажити'}
+           <input type="file" accept=".csv,text/csv" onchange="uploadTableCsv('${t.id}',this)"></span></td>
          <td><button class="del" onclick="delTable('${t.id}')">✕</button></td></tr>`).join('')}</tbody></table>`
     : `<div class="empty">Поки що порожньо</div>`;
 }
@@ -909,6 +952,7 @@ function renderTables(){
 function saveSettings(){
   DB.settings.hourlyRate = +$('setHourly').value || 0;
   DB.settings.minutesPerHour = +$('setMinutes').value || 65;
+  DB.settings.charsPerHour = +$('setChars').value || 1067;
   DB.settings.unitPrice  = +$('setUnit').value || 0;
   DB.settings.usdUah     = +$('setRate').value || 0;
   DB.settings.watcherPath = $('setWatcher').value.trim().replace(/^"|"$/g,'');
@@ -918,6 +962,7 @@ function renderSettings(){
   const s = DB.settings;
   $('setHourly').value = s.hourlyRate||'';
   $('setMinutes').value = s.minutesPerHour||65;
+  $('setChars').value = s.charsPerHour||1067;
   $('setUnit').value = s.unitPrice||'';
   $('setRate').value = s.usdUah||'';
   $('setWatcher').value = s.watcherPath||'';
