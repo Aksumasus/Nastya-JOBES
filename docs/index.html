@@ -545,7 +545,7 @@ function renderStats(){
   const unitCount = units.reduce((a,u)=>a+(+u.count||0),0);
   const usdVideo = paid * (+s.hourlyRate||0);
   const usdUnits = unitCount * (+s.unitPrice||0);
-  const usdTables = DB.tables.filter(t=>inPeriod(t.date)).reduce((a,t)=>a+tableUsd(t),0);
+  const usdTables = DB.tables.filter(t=>t.status==='перевірена' && inPeriod(t.date)).reduce((a,t)=>a+tableUsd(t),0);
   const usd = usdVideo + usdUnits + usdTables;
   const uah = usd * (+s.usdUah||0);
   const music = vids.filter(v=>v.cat==='music').length;
@@ -564,7 +564,7 @@ function renderStats(){
     <div class="stat"><div class="label">Оплачувані години</div><div class="num">${fmt(paid,2)}</div>
       <div class="sub">реальний час: ${fmt(realHours,2)} год · ${vids.length} відео</div></div>
     <div class="stat"><div class="label">Долари</div><div class="num">$${fmt(usd,2)}</div>
-      <div class="sub">відео $${fmt(usdVideo,2)} · юніти $${fmt(usdUnits,2)} · таблиці $${fmt(usdTables,2)}</div></div>
+      <div class="sub">відео $${fmt(usdVideo,2)} · юніти $${fmt(usdUnits,2)} · перевірені таблиці $${fmt(usdTables,2)}</div></div>
     <div class="stat"><div class="label">Гривні</div><div class="num">${fmt(uah,0)} ₴</div>
       <div class="sub">курс ${fmt(s.usdUah,2)}</div></div>
     <div class="stat"><div class="label">Music / No music</div><div class="num">${music} / ${nomusic}</div>
